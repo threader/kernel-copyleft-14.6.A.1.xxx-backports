@@ -68,17 +68,6 @@
 	stmia \ptr!, {\reg1, \reg2, \reg3, \reg4, \reg5, \reg6, \reg7, \reg8}
 	.endm
 
-#ifdef CONFIG_USE_LDRDSTRD_OVER_LDMSTM
-	.macro cpy8w dst src reg1 reg2 abort
-	.irp offset, #0, #8, #16, #24
-	ldr1w \src, \reg1, \abort
-	ldr1w \src, \reg2, \abort
-	strd \reg1, \reg2, [\dst, \offset]
-	.endr
-	add \dst, \dst, #32
-	.endm
-#endif
-
 	.macro ldstr8w ptrl ptrw reg1 reg2 reg3 reg4 reg5 reg6 reg7 reg8 abort
 	ldr1w \ptrl, \reg1, \abort
 	str1w \ptrw, \reg1, \abort

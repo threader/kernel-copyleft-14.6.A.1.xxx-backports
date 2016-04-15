@@ -163,9 +163,9 @@
 #else
 4:	PLD(	ldstr8w	r1, r0, r3, r4, r5, r6, r7, r8, ip, lr, abort=20f )
 		subs	r2, r2, #32
+#endif
 		bge	3b
 	PLD(	cmn	r2, #512		)
-#endif
 	PLD(	bge	4b			)
 #endif
 5:		ands	ip, r2, #28

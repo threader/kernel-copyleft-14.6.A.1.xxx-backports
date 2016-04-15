@@ -60,6 +60,7 @@ struct gpio_desc {
 #define FLAG_ACTIVE_LOW	7	/* sysfs value has active low */
 #define FLAG_OPEN_DRAIN	8	/* Gpio is open drain type */
 #define FLAG_OPEN_SOURCE 9	/* Gpio is open source type */
+#define FLAG_SYSFS_DIR	10	/* show sysfs direction attribute */
 
 #define ID_SHIFT	16	/* add new flags before this one */
 
@@ -319,7 +320,7 @@ static ssize_t gpio_value_store(struct device *dev,
 	return status;
 }
 
-static const DEVICE_ATTR(value, 0644,
+static DEVICE_ATTR(value, 0644,
 		gpio_value_show, gpio_value_store);
 
 static irqreturn_t gpio_sysfs_irq(int irq, void *priv)
@@ -589,7 +590,7 @@ static ssize_t chip_ngpio_show(struct device *dev,
 }
 static DEVICE_ATTR(ngpio, 0444, chip_ngpio_show, NULL);
 
-static const struct attribute *gpiochip_attrs[] = {
+static struct attribute *gpiochip_attrs[] = {
 	&dev_attr_base.attr,
 	&dev_attr_label.attr,
 	&dev_attr_ngpio.attr,
@@ -623,9 +624,11 @@ static ssize_t export_store(struct class *class,
 	 */
 
 	status = gpio_request(gpio, "sysfs");
-	if (status < 0)
+	if (status < 0) {
+		if (status == -EPROBE_DEFER)
+			status = -ENODEV;
 		goto done;
-
+	}
 	status = gpio_export(gpio, true);
 	if (status < 0)
 		gpio_free(gpio);
@@ -711,8 +714,10 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 		return -ENOENT;
 	}
 
-	if (!gpio_is_valid(gpio))
-		goto done;
+	if (!gpio_is_valid(gpio)) {
+		pr_debug("%s: gpio %d is not valid\n", __func__, gpio);
+		return -EINVAL;
+	}
 
 	mutex_lock(&sysfs_lock);
 
@@ -753,17 +758,20 @@ int gpio_export(unsigned gpio, bool direction_may_change)
 			if (status != 0)
 				device_unregister(dev);
 		} else
-			status = PTR_ERR(dev);
+	if (IS_ERR(dev)) {
+		status = PTR_ERR(dev);
+		goto fail_unlock;
+	}
 		if (status == 0)
 			set_bit(FLAG_EXPORT, &desc->flags);
 	}
 
+	set_bit(FLAG_EXPORT, &desc->flags);
 	mutex_unlock(&sysfs_lock);
 
-done:
-	if (status)
-		pr_debug("%s: gpio%d status %d\n", __func__, gpio, status);
-
+fail_unlock:
+	mutex_unlock(&sysfs_lock);
+	pr_debug("%s: gpio%d status %d\n", __func__, gpio, status);
 	return status;
 }
 EXPORT_SYMBOL_GPL(gpio_export);
@@ -803,6 +811,7 @@ int gpio_export_link(struct device *dev, const char *name, unsigned gpio)
 		if (tdev != NULL) {
 			status = sysfs_create_link(&dev->kobj, &tdev->kobj,
 						name);
+			put_device(tdev);
 		} else {
 			status = -ENODEV;
 		}
@@ -1079,26 +1088,23 @@ int gpiochip_add(struct gpio_chip *chip)
 				? (1 << FLAG_IS_OUT)
 				: 0;
 		}
+
+		of_gpiochip_add(chip);
 	}
 
 #ifdef CONFIG_PINCTRL
 	INIT_LIST_HEAD(&chip->pin_ranges);
 #endif
 
-	of_gpiochip_add(chip);
-
 unlock:
 	spin_unlock_irqrestore(&gpio_lock, flags);
 
-	if (status)
-		of_gpiochip_add(chip);
-		goto fail;
-	}
 	status = gpiochip_export(chip);
-	if (status)
+	if (status) {
 		of_gpiochip_remove(chip);
 		goto fail;
 	}
+
 	pr_info("gpiochip_add: registered GPIOs %d to %d on device: %s\n",
 		chip->base, chip->base + chip->ngpio - 1,
 		chip->label ? : "generic");
@@ -1238,8 +1244,10 @@ int gpio_request(unsigned gpio, const char *label)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	if (!gpio_is_valid(gpio))
+	if (!gpio_is_valid(gpio)) {
+		status = -EINVAL;
 		goto done;
+	}
 	desc = &gpio_desc[gpio];
 	chip = desc->chip;
 	if (chip == NULL)

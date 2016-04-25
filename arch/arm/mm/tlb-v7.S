@@ -63,7 +63,7 @@ ENTRY(v7wbi_flush_user_tlb_range)
 	cmp	r0, r1
 	blo	1b
 	dsb
-	mov	pc, lr
+	ret	lr
 ENDPROC(v7wbi_flush_user_tlb_range)
 
 /*
@@ -94,7 +94,7 @@ ENTRY(v7wbi_flush_kern_tlb_range)
 	blo	1b
 	dsb
 	isb
-	mov	pc, lr
+	ret	lr
 ENDPROC(v7wbi_flush_kern_tlb_range)
 
 	__INIT

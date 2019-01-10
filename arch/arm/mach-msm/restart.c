@@ -78,7 +78,7 @@ static void *emergency_dload_mode_addr;
 
 /* Download mode master kill-switch */
 static int dload_set(const char *val, struct kernel_param *kp);
-static int download_mode = 1;
+static int download_mode;
 module_param_call(download_mode, dload_set, param_get_int,
 			&download_mode, 0644);
 static int panic_prep_restart(struct notifier_block *this,
@@ -101,11 +101,6 @@ static void set_dload_mode(int on)
 		mb();
 		dload_mode_enabled = on;
 	}
-}
-
-static bool get_dload_mode(void)
-{
-	return dload_mode_enabled;
 }
 
 static void enable_emergency_dload_mode(void)
@@ -273,11 +268,7 @@ static void msm_restart_prepare(const char *cmd)
 
 	pm8xxx_reset_pwr_off(1);
 
-	/* Hard reset the PMIC unless memory contents must be maintained. */
-	if (get_dload_mode() || (cmd != NULL && cmd[0] != '\0'))
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
-	else
-		qpnp_pon_system_pwr_off(PON_POWER_OFF_HARD_RESET);
+	qpnp_pon_system_pwr_off(PON_POWER_OFF_WARM_RESET);
 
 	if (cmd != NULL) {
 		if (!strncmp(cmd, "bootloader", 10)) {

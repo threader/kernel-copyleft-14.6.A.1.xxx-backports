@@ -143,12 +143,12 @@ static ssize_t kmsg_lastlog_read(struct file *file, char __user *buf,
 	*offset += count;
 	return count;
 }
-/*
+
 static const struct file_operations kmsg_fops = {
 	.owner = THIS_MODULE,
 	.read = kmsg_lastlog_read,
 };
-*/
+
 static int export_kmsg_logs(void)
 {
 	struct proc_dir_entry *entry;

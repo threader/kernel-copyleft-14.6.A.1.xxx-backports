@@ -348,8 +348,6 @@ static int mdss_mdp_video_stop(struct mdss_mdp_ctl *ctl)
 		if (sctl)
 			mdss_mdp_irq_disable(MDSS_MDP_IRQ_INTF_UNDER_RUN,
 				sctl->intf_num);
-
-		mdss_bus_bandwidth_ctrl(false);
 	}
 
 	list_for_each_entry_safe(handle, tmp, &ctx->vsync_handlers, list)
@@ -726,7 +724,6 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 		if ((pdata->panel_info.cont_splash_enabled &&
 			!ctl->mfd->splash_info.splash_logo_enabled)
 			|| (ctl->mfd->splash_info.splash_logo_enabled
-			&& ctl->mfd->splash_info.splash_thread
 			&& !is_mdss_iommu_attached())) {
 			rc = wait_for_completion_timeout(&ctx->vsync_comp,
 					usecs_to_jiffies(VSYNC_TIMEOUT_US));
@@ -745,8 +742,6 @@ static int mdss_mdp_video_display(struct mdss_mdp_ctl *ctl, void *arg)
 		if (sctl)
 			mdss_mdp_irq_enable(MDSS_MDP_IRQ_INTF_UNDER_RUN,
 				sctl->intf_num);
-
-		mdss_bus_bandwidth_ctrl(true);
 
 		mdp_video_write(ctx, MDSS_MDP_REG_INTF_TIMING_ENGINE_EN, 1);
 		wmb();

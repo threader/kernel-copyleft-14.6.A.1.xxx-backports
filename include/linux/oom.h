@@ -1,4 +1,3 @@
-
 #ifndef __INCLUDE_LINUX_OOM_H
 #define __INCLUDE_LINUX_OOM_H
 
@@ -40,9 +39,6 @@ enum oom_constraint {
 	CONSTRAINT_MEMORY_POLICY,
 	CONSTRAINT_MEMCG,
 };
-
-extern void compare_swap_oom_score_adj(int old_val, int new_val);
-extern int test_set_oom_score_adj(int new_val);
 
 /* Thread is the potential origin of an oom condition; kill first on oom */
 #define OOM_FLAG_ORIGIN		((__force oom_flags_t)0x1)

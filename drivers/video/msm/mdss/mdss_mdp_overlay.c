@@ -977,7 +977,6 @@ static void mdss_mdp_overlay_cleanup(struct msm_fb_data_type *mfd,
 		else
 			__mdss_mdp_overlay_free_list_add(mfd, &pipe->front_buf);
 		mdss_mdp_overlay_free_buf(&pipe->back_buf);
-		list_del_init(&pipe->list);
 		mdss_mdp_pipe_destroy(pipe);
 	}
 	mutex_unlock(&mdp5_data->list_lock);
@@ -1232,7 +1231,6 @@ int mdss_mdp_overlay_kickoff(struct msm_fb_data_type *mfd,
 		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_BEGIN);
 		mdss_mdp_ctl_notify(ctl, MDP_NOTIFY_FRAME_READY);
 		mutex_lock(ctl->shared_lock);
-		mutex_lock(ctl->wb_lock);
 	}
 
 	mutex_lock(&mdp5_data->ov_lock);
@@ -1336,10 +1334,8 @@ commit_fail:
 		wake_up_all(&mfd->kickoff_wait_q);
 	}
 	mutex_unlock(&mdp5_data->ov_lock);
-	if (ctl->shared_lock) {
-		mutex_unlock(ctl->wb_lock);
+	if (ctl->shared_lock)
 		mutex_unlock(ctl->shared_lock);
-	}
 	ATRACE_END(__func__);
 	return ret;
 }
@@ -1986,15 +1982,13 @@ static ssize_t dynamic_fps_sysfs_wta_dfps(struct device *dev,
 	}
 
 	mutex_lock(&mdp5_data->dfps_lock);
-	if (dfps < pdata->panel_info.min_fps) {
-		pr_err("Unsupported FPS. min_fps = %d\n",
-				pdata->panel_info.min_fps);
-		mutex_unlock(&mdp5_data->dfps_lock);
-		return -EINVAL;
-	} else if (dfps > pdata->panel_info.max_fps) {
-		pr_warn("Unsupported FPS. Configuring to max_fps = %d\n",
-				pdata->panel_info.max_fps);
-		dfps = pdata->panel_info.max_fps;
+	if (dfps < 30) {
+		pr_err("Unsupported FPS. Configuring to min_fps = 30\n");
+		dfps = 30;
+		rc = mdss_mdp_ctl_update_fps(mdp5_data->ctl, dfps);
+	} else if (dfps > 60) {
+		pr_err("Unsupported FPS. Configuring to max_fps = 60\n");
+		dfps = 60;
 		rc = mdss_mdp_ctl_update_fps(mdp5_data->ctl, dfps);
 	} else {
 		rc = mdss_mdp_ctl_update_fps(mdp5_data->ctl, dfps);
